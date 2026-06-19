@@ -1,0 +1,3 @@
+-- Optional room fixtures. Run after creating a room, replacing :room_id and :owner_user_id.
+-- select public.add_match(:room_id, 'Argentina', 'France', now() + interval '2 hours');
+-- select public.add_match(:room_id, 'Brazil', 'Germany', now() + interval '1 day');
