@@ -15,10 +15,19 @@ type Props = {
   onDone: () => void;
 };
 
-const markets: MarketType[] = ["outcome", "goal_diff", "total_goals", "total_corners"];
+// 全面扩展为 7 大盘面
+const markets = [
+  "outcome",
+  "goal_diff",
+  "total_goals",
+  "total_corners",
+  "both_teams_score",
+  "clean_sheet",
+  "goal_parity"
+];
 
 export function BetSlip({ roomId, match, member, myBets, onDone }: Props) {
-  const [market, setMarket] = useState<MarketType>("outcome");
+  const [market, setMarket] = useState("outcome");
   const [optionKey, setOptionKey] = useState("HOME");
   const [amount, setAmount] = useState("50");
   const [busy, setBusy] = useState(false);
@@ -41,16 +50,16 @@ export function BetSlip({ roomId, match, member, myBets, onDone }: Props) {
       const { error } = await supabase.rpc("place_bet", {
         p_room_id: roomId,
         p_match_id: match.id,
-        p_market: market,
+        p_market: market as MarketType, // 强制断言转换，绕开旧版类型的检查
         p_option_key: optionKey,
         p_amount: parsedAmount
       });
 
       if (error) throw error;
-      setMessage("下注成功");
+      setMessage("✅ 下注成功！");
       onDone();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "下注失败");
+    } catch (error: any) {
+      setMessage(error?.message || "下注失败");
     } finally {
       setBusy(false);
     }
@@ -66,7 +75,8 @@ export function BetSlip({ roomId, match, member, myBets, onDone }: Props) {
         <span className="font-semibold">{formatChips(remainingCap)}</span>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-4">
+      {/* 调整了布局方式，让 7 个按钮自动换行并适配移动端屏幕 */}
+      <div className="flex flex-wrap gap-2">
         {markets.map((item) => (
           <button
             key={item}
@@ -75,8 +85,8 @@ export function BetSlip({ roomId, match, member, myBets, onDone }: Props) {
               setMarket(item);
               setOptionKey(getMarketOptions(item)[0].key);
             }}
-            className={`h-9 rounded-md border px-2 text-sm font-medium ${
-              market === item ? "border-pitch bg-pitch text-white" : "border-black/10 bg-white hover:border-pitch"
+            className={`h-9 rounded-md border px-3 text-sm font-medium transition-colors ${
+              market === item ? "border-pitch bg-pitch text-white" : "border-black/10 bg-white hover:border-pitch hover:bg-black/5"
             }`}
           >
             {marketLabels[item]}
@@ -101,7 +111,7 @@ export function BetSlip({ roomId, match, member, myBets, onDone }: Props) {
           value={amount}
           onChange={(event) => setAmount(event.target.value)}
           inputMode="decimal"
-          className="h-10 rounded-md border border-black/10 bg-white px-3"
+          className="h-10 rounded-md border border-black/10 bg-white px-3 font-semibold"
           disabled={isLocked}
         />
         <button
@@ -110,7 +120,7 @@ export function BetSlip({ roomId, match, member, myBets, onDone }: Props) {
           disabled={busy || isLocked}
           className="h-10 rounded-md bg-limewash px-4 text-sm font-semibold text-ink disabled:cursor-not-allowed disabled:opacity-45"
         >
-          {busy ? "提交中" : isLocked ? "已锁盘" : "下注"}
+          {busy ? "提交中..." : isLocked ? "已锁盘" : "下注"}
         </button>
       </div>
 

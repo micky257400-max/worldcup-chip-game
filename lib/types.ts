@@ -1,4 +1,12 @@
-export type MarketType = "outcome" | "goal_diff" | "total_goals" | "total_corners";
+export type MarketType = 
+  | "outcome" 
+  | "goal_diff" 
+  | "total_goals" 
+  | "total_corners"
+  | "both_teams_score" 
+  | "clean_sheet" 
+  | "goal_parity";
+
 export type MatchStatus = "scheduled" | "locked" | "settled";
 export type BetStatus = "open" | "won" | "lost" | "refunded";
 
@@ -8,6 +16,9 @@ export type Room = {
   name: string;
   owner_id: string;
   created_at: string;
+  // 新增：与数据库对应的赛季控制字段
+  season_ends_at?: string | null;
+  finalized_at?: string | null;
 };
 
 export type RoomMember = {
