@@ -13,10 +13,12 @@ export default function HomePage() {
   const [busy, setBusy] = useState<"create" | "join" | "resume" | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   
-  // 新增：用于记录上次进入的房间 ID
   const [lastRoomId, setLastRoomId] = useState<string | null>(null);
 
-  // 页面加载时，尝试读取本地缓存的昵称和房间记录
+  // 核心：视图状态控制器
+  // loading: 校验中(白屏) | error: 陌生人假报错 | ui: 自己人真实界面
+  const [viewState, setViewState] = useState<"loading" | "error" | "ui">("loading");
+
   useEffect(() => {
     const savedNickname = localStorage.getItem("wc_nickname");
     const savedRoomId = localStorage.getItem("wc_last_room");
@@ -24,7 +26,19 @@ export default function HomePage() {
     if (savedNickname) setNickname(savedNickname);
     if (savedRoomId) setLastRoomId(savedRoomId);
 
-    // 顺便检查一下 Supabase 的登录状态是否还在，如果失效了就清空房间记录
+    // 设置我们的隐藏暗号：在网址末尾加 ?key=888 即可破墙而入
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasSecretKey = urlParams.get("key") === "888";
+
+    // 身份校验逻辑
+    if (savedRoomId || hasSecretKey) {
+      // 如果有历史缓存（老玩家），或者输入了暗号，放行！
+      setViewState("ui");
+    } else {
+      // 没有任何痕迹的纯陌生人，拉起报错伪装！
+      setViewState("error");
+    }
+
     supabase.auth.getSession().then(({ data }) => {
       if (!data.session) {
         localStorage.removeItem("wc_last_room");
@@ -33,7 +47,6 @@ export default function HomePage() {
     });
   }, []);
 
-  // 辅助函数：成功进入房间后，把信息存到本地
   const saveToLocal = (name: string, roomId: string) => {
     localStorage.setItem("wc_nickname", name);
     localStorage.setItem("wc_last_room", roomId);
@@ -53,7 +66,7 @@ export default function HomePage() {
       });
       if (error) throw error;
       
-      saveToLocal(nickname, data); // 保存记录
+      saveToLocal(nickname, data);
       router.push(`/rooms/${data}`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "创建房间失败");
@@ -76,7 +89,7 @@ export default function HomePage() {
       });
       if (error) throw error;
       
-      saveToLocal(nickname, data); // 保存记录
+      saveToLocal(nickname, data);
       router.push(`/rooms/${data}`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "加入房间失败");
@@ -85,7 +98,6 @@ export default function HomePage() {
     }
   }
 
-  // 新增：一键恢复上次房间的方法
   function resumeLastRoom() {
     if (lastRoomId) {
       setBusy("resume");
@@ -93,6 +105,31 @@ export default function HomePage() {
     }
   }
 
+  // 1. 过渡状态：极其短暂的白屏，防止画面闪烁
+  if (viewState === "loading") {
+    return <main className="min-h-screen bg-paper"></main>;
+  }
+
+  // 2. 陌生人拦截墙：极其逼真的底层报错伪装
+  if (viewState === "error") {
+    return (
+      <div style={{ padding: "40px", fontFamily: "monospace", color: "#333", backgroundColor: "#fff", minHeight: "100vh" }}>
+        <h1 style={{ fontSize: "24px", marginBottom: "16px" }}>503 Service Temporarily Unavailable</h1>
+        <p style={{ margin: "8px 0" }}>
+          <strong>Error:</strong> FATAL: remaining connection slots are reserved for non-replication superuser connections.
+        </p>
+        <p style={{ margin: "8px 0" }}>
+          <strong>Detail:</strong> Supabase free tier connection limit exceeded. Please upgrade your plan to continue.
+        </p>
+        <hr style={{ margin: "20px 0", border: "none", borderTop: "1px solid #ccc" }} />
+        <p style={{ fontSize: "12px", color: "#666" }}>
+          Cloudflare Edge / Supabase Realtime Gateway
+        </p>
+      </div>
+    );
+  }
+
+  // 3. 自己人的真实界面
   return (
     <main className="min-h-screen bg-paper">
       <section className="mx-auto grid min-h-screen max-w-5xl content-center gap-8 px-4 py-10 md:grid-cols-[1.1fr_0.9fr]">
@@ -106,7 +143,6 @@ export default function HomePage() {
 
         <div className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
           
-          {/* 新增 UI：如果检测到上次的房间，显示醒目的继续按钮 */}
           {lastRoomId && (
             <div className="mb-6 rounded-md border border-pitch/20 bg-pitch/5 p-4">
               <p className="mb-3 text-sm font-medium text-pitch">欢迎回来，{nickname || "朋友"}</p>
